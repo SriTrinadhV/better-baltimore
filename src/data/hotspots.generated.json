@@ -1,0 +1,44 @@
+{
+  "cool-the-block": {
+    "missionId": "cool-the-block",
+    "lat": 39.24075,
+    "lng": -76.66625,
+    "metrics": {
+      "canopy_pct": 0.2,
+      "green_score": 0.5
+    },
+    "method": "Lowest tree-canopy coverage (0.2%) among 36 grid cells scanned across Baltimore.",
+    "gridCell": {
+      "row": 1,
+      "col": 1
+    }
+  },
+  "reclaim-the-lot": {
+    "missionId": "reclaim-the-lot",
+    "lat": 39.29908,
+    "lng": -76.63575,
+    "metrics": {
+      "vacant_count": 3197,
+      "vacancy_density": 100
+    },
+    "method": "Highest concentration of vacant building notices (3197 exact count, via returnCountOnly) among 36 grid cells scanned. Map overlay shows a capped sample of 1000 points.",
+    "gridCell": {
+      "row": 3,
+      "col": 2
+    }
+  },
+  "flood-ready": {
+    "missionId": "flood-ready",
+    "lat": 39.26992,
+    "lng": -76.60525,
+    "metrics": {
+      "floodplain_overlap": 100.0,
+      "resilience_score": 40.0
+    },
+    "method": "Highest floodplain overlap (100.0%) among 36 grid cells scanned across Baltimore.",
+    "gridCell": {
+      "row": 2,
+      "col": 3
+    }
+  }
+}

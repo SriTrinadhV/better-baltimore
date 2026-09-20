@@ -26,8 +26,10 @@ describe("simulation engine", () => {
   });
 
   it("reduces vacancy count for Reclaim the Lot without going negative", () => {
-    const result = runSimulation(mission("reclaim-the-lot"), "community-green-space", { parcels: 100 });
-    const after = result.after.find((m) => m.key === "vacant_count")!;
+    const m = mission("reclaim-the-lot");
+    const baseline = m.baselineMetrics.find((metric) => metric.key === "vacant_count")!.value;
+    const result = runSimulation(m, "community-green-space", { parcels: baseline + 1000 });
+    const after = result.after.find((metric) => metric.key === "vacant_count")!;
     expect(after.value).toBe(0);
   });
 

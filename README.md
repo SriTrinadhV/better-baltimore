@@ -44,10 +44,23 @@ The module (`spacetimedb/src/index.ts`) defines the schema and reducers. The fro
 
 Set `VITE_SPACETIMEDB_URI` / `VITE_SPACETIMEDB_MODULE` in `.env` to point at a different server (see `.env.example`); defaults to `ws://localhost:3000` / `better-baltimore`.
 
-## Marimo Data Command Center (Phase 5+)
+## Marimo Data Command Center
+
+Runs in an isolated venv (this machine's system pandas/numpy have an ABI conflict — see `STATUS.md`):
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r analysis/requirements.txt
 marimo run analysis/better_baltimore.py
+```
+
+## Data ingestion
+
+`scripts/derive_hotspots.py` queries Baltimore City's live ArcGIS layers (Tree Canopy, Vacant Building Notices, Floodplain) across a grid over the city, and writes `public/data/hotspots.json`, `src/data/hotspots.generated.json` (consumed by `src/data/missions.seed.ts`), the three `public/data/*_hotspot.geojson` overlay files, and `docs/DATA_SOURCES.md`.
+
+```bash
+source .venv/bin/activate  # or your own venv with scripts/requirements.txt installed
+python3 scripts/derive_hotspots.py
 ```
 
 ## Project layout

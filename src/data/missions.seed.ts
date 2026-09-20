@@ -1,8 +1,18 @@
-import type { Mission } from "../app/types";
+import type { Mission, Metric } from "../app/types";
+import hotspots from "./hotspots.generated.json";
 
-// Temporary Baltimore coordinates for Phase 1 vertical slice.
-// Real hotspot coordinates derived from open data replace these in Phase 3.
-export const SEED_MISSIONS: Mission[] = [
+interface HotspotEntry {
+  missionId: string;
+  lat: number;
+  lng: number;
+  metrics: Record<string, number>;
+  method: string;
+  gridCell: { row: number; col: number };
+}
+
+const HOTSPOTS = hotspots as Record<string, HotspotEntry>;
+
+const RAW_SEED_MISSIONS: Mission[] = [
   {
     id: "cool-the-block",
     slug: "cool-the-block",
@@ -235,3 +245,23 @@ export const SEED_MISSIONS: Mission[] = [
     ],
   },
 ];
+
+function withHotspot(mission: Mission): Mission {
+  const hotspot = HOTSPOTS[mission.id];
+  if (!hotspot) return mission;
+
+  const baselineMetrics: Metric[] = mission.baselineMetrics.map((metric) => {
+    const derivedValue = hotspot.metrics[metric.key];
+    return derivedValue === undefined ? metric : { ...metric, value: derivedValue };
+  });
+
+  return {
+    ...mission,
+    lat: hotspot.lat,
+    lng: hotspot.lng,
+    whyHere: hotspot.method,
+    baselineMetrics,
+  };
+}
+
+export const SEED_MISSIONS: Mission[] = RAW_SEED_MISSIONS.map(withHotspot);

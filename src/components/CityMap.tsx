@@ -6,6 +6,7 @@ import { add3dBuildings, BALTIMORE_CENTER, BALTIMORE_OVERVIEW_ZOOM } from "../ma
 import { flyToMission, flyToOverview } from "../map/camera";
 import { createMissionMarker, markerColor, type MissionMarkerHandle } from "../map/missions";
 import { ensureOverlaySource, setOverlayFeatures } from "../map/betterView";
+import { ensureDataOverlays, setDataOverlaysVisible } from "../map/dataOverlays";
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -43,6 +44,7 @@ export function CityMap({ missions, mode, selectedMissionId, simulationResults, 
     map.on("load", () => {
       add3dBuildings(map);
       ensureOverlaySource(map);
+      ensureDataOverlays(map);
       setStatus("ready");
     });
 
@@ -97,6 +99,8 @@ export function CityMap({ missions, mode, selectedMissionId, simulationResults, 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || status !== "ready") return;
+
+    setDataOverlaysVisible(map, mode === "DATA");
 
     if (mode === "REALITY") {
       setOverlayFeatures(map, []);

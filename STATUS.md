@@ -1,40 +1,46 @@
 # Better Baltimore — Status
 
 ## Current phase
-Phase 2 complete (of 9). Starting Phase 3 (real Baltimore open data ingestion).
+Phase 3 + Phase 5 complete (of 9; Phase 4 substantially already satisfied — see note). Starting Phase 6 (Civic Copilot / City Memory).
 
 ## Completed functionality
-- Vite + React + TypeScript app shell, dark civic-tech theme.
-- MapLibre GL JS + OpenFreeMap ("liberty" style) whole-city 3D map, centered on Baltimore, with 3D building fill-extrusion layer.
-- `REALITY | DATA | BETTER` mode switch, camera-preserving where possible.
-- Six mission markers with category colors, mission list sidebar with fly-to.
-- Full mission detail panel: summary, "why here?", observed metrics, source panel (observed/derived/simulated labels), intervention picker, deterministic before/after simulation with assumptions.
-- Deterministic local simulation engine (`src/simulation/engine.ts`) covering all six missions, with unit tests (including a regression test for correct observed-vs-simulated provenance labeling).
-- **SpacetimeDB is now the authoritative backend** (Phase 2):
-  - Local SpacetimeDB v2.10.1 (aarch64-unknown-linux-gnu) running natively on this Jetson at `~/.local/bin/spacetime` — no cloud dependency.
-  - TypeScript server module (`spacetimedb/src/index.ts`) with tables `player_session`, `mission`, `intervention`, `mission_state`, `simulation_run`, `data_source`, `city_memory`, and reducers `ensure_session`, `set_mode`, `seed_data_source`, `seed_mission`, `seed_intervention`, `seed_city_memory`, `choose_intervention`, `run_simulation`, `reset_mission`.
-  - Published locally as database `better-baltimore`; TypeScript client bindings generated into `src/spacetime/module_bindings/`.
-  - Frontend (`src/data/client.ts` — `useSpacetimeData()`) connects, subscribes to all game tables, auto-seeds on first empty connection, and drives all mutations through reducers.
-  - **Verified live**: fresh browser tab with zero interaction correctly shows a mission already marked "done" from a different tab's completed simulation — real-time multi-client sync confirmed via SQL (`spacetime sql`) and multi-tab browser testing.
-- Landing screen with "Explore Baltimore" / "Open Data Command Center" entry points.
+- Vite + React + TypeScript app shell, MapLibre + OpenFreeMap 3D Baltimore map, REALITY/DATA/BETTER modes, six mission markers, full mission flow, deterministic simulation engine (unit tested).
+- SpacetimeDB is the authoritative backend (local, ARM64-native, verified multi-client sync).
+- **Phase 3 — real Baltimore City open data** now backs all three deep missions:
+  - `scripts/lib.py` + `scripts/derive_hotspots.py`: scans a 6x6 grid over Baltimore, querying the three verified live ArcGIS layers (Tree Canopy, Vacant Building Notices, Floodplain) per cell with an intersecting-envelope spatial filter (not a full citywide dump), and picks the top-scoring cell per mission.
+  - Fixed two real data-integrity bugs caught during derivation: (1) vacant-building counts were silently capped at ArcGIS's 1000-record page size — now uses a `returnCountOnly` query for the true count; (2) polygon overlay files (floodplain especially) shipped each intersecting feature's *entire* unclipped geometry, producing a 14MB file — now clipped to the query cell and simplified before writing.
+  - Real derived results: Cool the Block → 0.2% canopy coverage cell; Reclaim the Lot → 3,197 vacant building notices (exact count) in one grid cell; Flood Ready → 100% floodplain overlap cell. All three are geographically plausible (matches known Baltimore geography — e.g. the vacancy hotspot lands in West Baltimore, consistent with well-documented vacancy patterns).
+  - `docs/DATA_SOURCES.md` auto-generated with the exact URLs, layer names, and method used.
+  - Frontend now imports `src/data/hotspots.generated.json` and merges it into the three deep missions' lat/lng/baseline metrics/"why here" text (`src/data/missions.seed.ts`).
+  - DATA-mode map now renders the real hotspot GeoJSON as actual layers (`src/map/dataOverlays.ts`) — green fill for canopy, orange points for vacancy, blue fill for floodplain — not just abstract circles.
+- **Phase 5 — marimo Data Command Center** (`analysis/better_baltimore.py`), verified running via `marimo run`:
+  - Dataset selector → provenance card (observed/derived/simulated + source link).
+  - Interactive geospatial chart of the actual hotspot GeoJSON (Altair `mark_geoshape`/`mark_circle`).
+  - "Why here?" + grid-cell explanation, baseline metric bar chart.
+  - Intervention slider driving a `simulate()` function that mirrors `src/simulation/engine.ts`'s formulas exactly, before/after faceted bar chart.
+  - Assumptions section.
+  - Runs in an isolated `.venv` (created to avoid a broken system pandas/numpy ABI conflict on this shared machine — see below).
+
+## Phase 4 note
+The "complete all six missions" acceptance gate was already satisfied back in Phase 1 (all six missions have interventions and a working simulate → before/after flow; three deep + three clearly-labeled scenario missions). What Phase 3 added on top: the three deep missions now use real coordinates/metrics instead of placeholders, and DATA view shows real overlay geometry. Remaining Phase 4 scope (richer Better-view visual treatment per mission) is lighter-weight polish, deferred to Phase 7 if time allows.
 
 ## Current tests
-- `npx vitest run` — 6/6 passing.
-- `npx tsc -b` — clean (frontend + SpacetimeDB module).
-- `npm run build` — succeeds (one non-blocking chunk-size warning, addressable in Phase 7 polish).
-- `spacetime build` (module) — clean.
-- Manually verified in browser: landing → explore → mission click → intervention select → run simulation → before/after table with correct provenance → mission "done" badge, confirmed persisted server-side via `spacetime sql` and visible instantly in an independent fresh tab.
+- `npx vitest run` — 6/6 passing (one test updated: it hardcoded an assumption tied to the old placeholder vacancy baseline of 14; fixed to compute against the mission's actual baseline instead of a magic number, since real data is now 3,197).
+- `npx tsc -b`, `npm run build` — clean.
+- `spacetime build` — clean; local DB wiped and republished with real seed data (`spacetime publish better-baltimore --server local --delete-data=always -y`).
+- marimo notebook manually verified in-browser: all cells render (map, metrics, slider, before/after) with no errors, after fixing a marimo-specific bug (see below).
 
-## Known issue / environment note
-The embedded preview-pane browser used for automated verification in this session does not support ES module Web Workers, which blocks MapLibre GL's internal worker pool — the map never fires its `load` event in that sandbox specifically (confirmed via direct Worker construction test; classic workers work fine there). This is standard, widely-supported browser functionality (Chrome/Firefox since ~2020) and did not reproduce as a code-level bug — reproduced identically in both Vite dev and a production `vite build` + `vite preview` serve. **Action item:** confirm the 3D map renders correctly in the Jetson's actual desktop browser before the demo.
-
-React 18/19 StrictMode double-invokes the SpacetimeDB connection effect in dev, logging one harmless "WebSocket is closed before the connection is established" / "SpacetimeDB connection error" pair per mount (first connection attempt is cancelled by cleanup before its handshake completes; the second succeeds and is what the UI uses). This is dev-only StrictMode behavior and does not occur in production builds.
+## Known issues / environment notes
+- **marimo cell-scoping bug (fixed):** initial version of the notebook defined two lookup dicts and the `simulate()` helper as plain top-level module code between `@app.cell` blocks. marimo only executes code inside `@app.cell` functions — those definitions were silently invisible to cells that referenced them, causing an unhandled `NameError` partway through the notebook (visible only as a generic "An internal error occurred" banner, with several cells simply not rendering). Fixed by moving them into their own cells. Worth remembering for any future marimo work: **all live code must be inside a cell**, even simple constants.
+- **System Python ABI conflict:** this Jetson's apt-installed `pandas` (`/usr/lib/python3/dist-packages`) is binary-incompatible with the pip-installed `numpy` already on the system (`numpy.dtype size changed` error). Worked around with an isolated `.venv` for `analysis/` and `scripts/` rather than touching the shared system Python — safer on a machine with another user's global setup. Anyone running the notebook or data scripts should `source .venv/bin/activate` first (or create their own venv from `analysis/requirements.txt` / `scripts/requirements.txt`).
+- The embedded preview-pane browser used for automated verification in this session cannot run MapLibre's module Web Workers (confirmed via direct `new Worker(url, {type:"module"})` test — fails identically in dev and production builds). This is standard browser functionality elsewhere; **please spot-check the 3D map renders in the Jetson's actual desktop browser before demo day.**
+- React 18/19 StrictMode double-invokes the SpacetimeDB connection effect in dev, logging one harmless cancelled-connection warning per mount. Dev-only, not present in production builds.
 
 ## Blockers
-None current. Both items above are verification/cosmetic notes, not known-broken features.
+None current — all items above are resolved or are verification/cosmetic notes.
 
 ## Next action
-Phase 3: fetch real Baltimore City open data (Tree Canopy, Vacant Building Notices, Floodplain), normalize to `public/data/`, derive stable demo hotspots, and replace the three deep missions' temporary coordinates + `pending verification` source metadata with real, sourced values.
+Phase 6: one advanced AI feature (Civic Copilot, RAG-lite over mission/source evidence — works with or without a Gemini key) + one City Memory. After that: Phase 7 polish, Phase 8 reliability/deploy, Phase 9 submission.
 
 ## Demo readiness
-Core vertical slice + real-time shared backend work locally. Still needed: real Baltimore data (currently seed/placeholder coordinates and metrics), marimo notebook, polish, deploy.
+Core vertical slice + real-time backend + real Baltimore data (3 deep missions) + marimo notebook all work locally and are verified end-to-end. Still needed: Civic Copilot, City Memory, polish pass, deploy, submission materials.
