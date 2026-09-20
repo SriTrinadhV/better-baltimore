@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
-import type { DataSource, Intervention, Mission, SimulationResult, ViewMode } from "./app/types";
-import { SEED_MISSIONS } from "./data/missions.seed";
-import { loadDataSources, findSource } from "./data/provenance";
+import type { Intervention, Mission, ViewMode } from "./app/types";
 import { runSimulation } from "./simulation/engine";
+import { useSpacetimeData } from "./data/client";
+import { findSource } from "./data/provenance";
 import { ModeSwitch } from "./components/ModeSwitch";
 import { MissionList } from "./components/MissionList";
 import { CityMap } from "./components/CityMap";
@@ -13,18 +13,10 @@ type Screen = "landing" | "explore";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("landing");
-  const [missions, setMissions] = useState<Mission[]>(SEED_MISSIONS);
   const [mode, setMode] = useState<ViewMode>("REALITY");
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
-  const [simulationResults, setSimulationResults] = useState<Record<string, SimulationResult>>({});
-  const [dataSources, setDataSources] = useState<DataSource[]>([]);
-  const [dataError, setDataError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadDataSources()
-      .then(setDataSources)
-      .catch((err) => setDataError(String(err)));
-  }, []);
+  const { connected, missions, dataSources, simulationResults, chooseIntervention, persistSimulation } =
+    useSpacetimeData();
 
   const selectedMission = useMemo(
     () => missions.find((m) => m.id === selectedMissionId) ?? null,
@@ -36,11 +28,9 @@ function App() {
   }
 
   function handleRunSimulation(mission: Mission, intervention: Intervention) {
+    chooseIntervention(mission.id, intervention.id);
     const result = runSimulation(mission, intervention.key, intervention.parameters);
-    setSimulationResults((prev) => ({ ...prev, [mission.id]: result }));
-    setMissions((prev) =>
-      prev.map((m) => (m.id === mission.id ? { ...m, status: "completed" } : m)),
-    );
+    persistSimulation(mission.id, intervention.id, result);
   }
 
   if (screen === "landing") {
@@ -65,7 +55,6 @@ function App() {
             Open Data Command Center
           </a>
         </div>
-        {dataError && <p style={{ color: "#ff9c9c" }}>Failed to load data sources: {dataError}</p>}
       </div>
     );
   }
@@ -75,7 +64,9 @@ function App() {
       <header className="app__header">
         <span className="app__title">Better Baltimore</span>
         <ModeSwitch mode={mode} onChange={setMode} />
-        <span className="connection-badge">Local mode (SpacetimeDB not yet connected)</span>
+        <span className={`connection-badge ${connected ? "connection-badge--connected" : ""}`}>
+          {connected ? "SpacetimeDB connected" : "Connecting to SpacetimeDB…"}
+        </span>
       </header>
       <div className={`app__body ${selectedMission ? "app__body--with-panel" : ""}`}>
         <aside className="sidebar">

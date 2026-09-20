@@ -30,9 +30,19 @@ npx tsc -b         # typecheck
 npm run build      # production build
 ```
 
-## SpacetimeDB CLI
+## SpacetimeDB
 
-An ARM64 Linux build of the SpacetimeDB CLI is available and works natively on this Jetson (no cloud dependency required for local dev). Install it to `~/.local/bin/spacetime` and ensure `~/.local/bin` is on `PATH`.
+An ARM64 Linux build of the SpacetimeDB CLI is available and works natively on this Jetson (no cloud dependency required for local dev). Installed at `~/.local/bin/spacetime`.
+
+```bash
+spacetime start                                    # run the local server (once, in background)
+spacetime publish better-baltimore --server local -y --project-path spacetimedb
+spacetime generate --lang typescript --out-dir ./src/spacetime/module_bindings --module-path ./spacetimedb
+```
+
+The module (`spacetimedb/src/index.ts`) defines the schema and reducers. The frontend connects via `src/spacetime/connection.ts` and mirrors table state into React through `src/data/client.ts`'s `useSpacetimeData()` hook. On first connect, if the `mission` table is empty, the client seeds it from `src/data/missions.seed.ts` and `public/data/sources.json` by calling the `seed_*` reducers.
+
+Set `VITE_SPACETIMEDB_URI` / `VITE_SPACETIMEDB_MODULE` in `.env` to point at a different server (see `.env.example`); defaults to `ws://localhost:3000` / `better-baltimore`.
 
 ## Marimo Data Command Center (Phase 5+)
 
