@@ -1,7 +1,7 @@
 # Better Baltimore — Status
 
 ## Current phase
-Phase 8 complete (of 9, local-only deployment — see note). Starting Phase 9 (submission prep).
+Phase 9 submission materials drafted (of 9). Three manual steps remain before actual Devpost submission — see "What's left" below.
 
 ## Completed functionality
 - Vite + React + TypeScript app shell, MapLibre + OpenFreeMap 3D Baltimore map, REALITY/DATA/BETTER modes, six mission markers, full mission flow, deterministic simulation engine (unit tested).
@@ -34,6 +34,16 @@ Phase 8 complete (of 9, local-only deployment — see note). Starting Phase 9 (s
 - **Deployment decision: local-only, deliberately.** Per `02_12_HOUR_EXECUTION_PLAN.md`'s explicit fallback rule ("if cloud publish is blocking, run local SpacetimeDB and continue... do not swap to another database") and `00_START_HERE_CLAUDE.md`'s framing that the demo artifact is a recorded walkthrough, not a hosted public link — the app runs fully locally on this Jetson (frontend dev server + local SpacetimeDB + local marimo), which is explicitly sufficient. Publishing to SpacetimeDB Maincloud or a static frontend host (Vercel/GitHub Pages) was *not* attempted because it would require creating a new SpacetimeDB Maincloud account/login — a decision left to you rather than assumed. Say the word if you want that for a shareable link and I'll walk through it the same way we did `gh auth login`.
 - README now has a single "Quickstart (full stack, from a cold machine)" section covering all three services (frontend, SpacetimeDB, marimo) in the right order.
 - **Not done from this session, needs your hands-on check:** an actual screen recording and real screenshots of the 3D map in REALITY/DATA/BETTER modes. This session's browser sandbox cannot render MapLibre's WebGL map (see the module-worker note above) and `Claude in Chrome` isn't connected in this environment, so I have no way to capture the map visually. Please do a final pass in your Jetson's real browser: confirm the map renders and looks right in all three modes, then grab the screenshots/recording — that's the one concrete manual step left before this is fully demo-ready.
+
+## Phase 9 — submission prep
+Drafted full Devpost copy at [`docs/SUBMISSION.md`](../docs/SUBMISSION.md) — title, pitch, inspiration, what it does/how we built it, the real Baltimore datasets and numbers we derived, genuine challenges we hit and fixed (ArcGIS's silent record cap, the 14MB unclipped floodplain file, the marimo cell-scoping bug, the pandas/numpy ABI conflict), accomplishments, and what's next. All filled in with this build's actual verified specifics, not the generic template.
+
+## What's left (manual, needs you)
+1. **Confirm the 3D map renders correctly in a real browser on this machine.** This session's automated browser tooling couldn't verify it — the sandboxed preview pane can't run MapLibre's WebGL module workers, and `Claude in Chrome` was never connected in this environment. Everything else (mission flow, SpacetimeDB sync, marimo, Civic Copilot) was verified working end-to-end; the map itself is the one piece I could not see with my own eyes.
+2. **Record the 90–120s demo** using the script in `07_DEMO_AND_SUBMISSION.md`.
+3. **Paste the video link into `docs/SUBMISSION.md`** and submit on Devpost.
+
+If you want a judge-accessible hosted link instead of (or alongside) a local demo, say so — publishing the SpacetimeDB module to Maincloud needs a `spacetime login` (new account decision, same as the `gh auth login` flow earlier) that I didn't do without asking.
 
 ## Phase 4 note
 The "complete all six missions" acceptance gate was already satisfied back in Phase 1 (all six missions have interventions and a working simulate → before/after flow; three deep + three clearly-labeled scenario missions). What Phase 3 added on top: the three deep missions now use real coordinates/metrics instead of placeholders, and DATA view shows real overlay geometry. Remaining Phase 4 scope (richer Better-view visual treatment per mission) is lighter-weight polish, deferred to Phase 7 if time allows.
