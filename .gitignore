@@ -25,6 +25,9 @@ __pycache__/
 spacetimedb/.spacetime/
 *.db
 
+# Claude Code session-local artifacts
+.claude/scheduled_tasks.lock
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

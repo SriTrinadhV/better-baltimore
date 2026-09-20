@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, NavigationControl } from "maplibre-gl";
+import { Map as MapLibreMap, NavigationControl, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre finds its own worker script via a URL relative to import.meta.url
+// of its own bundled module — which breaks once a bundler inlines that code
+// into a different chunk (the constructed URL then points at a file that
+// doesn't exist, and the server's HTML fallback gets rejected as an invalid
+// module MIME type). Importing the real worker file with Vite's `?url`
+// suffix gives back its actual resolved URL in both dev and production, so
+// we can point MapLibre at it explicitly instead of relying on autodetection.
+// `?url` copies the file byte-for-byte without following ITS OWN relative
+// import of "./maplibre-gl-shared.mjs" — so that sibling must be copied too
+// (vite.config.ts pins both filenames unhashed so the worker's unmodified
+// relative import still resolves against whatever actually gets served).
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import "maplibre-gl/dist/maplibre-gl-shared.mjs?url";
+
+setWorkerUrl(maplibreWorkerUrl);
 import type { CityMemory, Mission, SimulationResult, ViewMode } from "../app/types";
 import { add3dBuildings, BALTIMORE_CENTER, BALTIMORE_OVERVIEW_ZOOM } from "../map/layers";
 import { flyToMission, flyToOverview } from "../map/camera";

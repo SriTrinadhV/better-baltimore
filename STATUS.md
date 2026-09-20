@@ -1,70 +1,54 @@
 # Better Baltimore — Status
 
 ## Current phase
-Phase 9 submission materials drafted (of 9). Three manual steps remain before actual Devpost submission — see "What's left" below.
+All 9 execution-plan phases built. A real map-rendering bug was found and fixed post-Phase-9 (see below) — that's the one item still needing your visual confirmation before this is submission-ready.
+
+## Map rendering bug: found and fixed (real bug, not a sandbox artifact)
+Earlier notes in this file guessed the map's "stuck loading" behavior was a limitation of this session's sandboxed test browser. That was wrong — you confirmed it failed identically in your real Firefox 128 and Chromium on this Jetson (WebGL itself was confirmed fully hardware-accelerated via `about:support`, ruling out a GPU/driver problem). Root-caused via direct console/network/event inspection to **three stacked bugs**, all now fixed in `vite.config.ts` and `src/components/CityMap.tsx`:
+
+1. **Dev server**: Vite's esbuild dependency pre-bundling repackaged maplibre-gl's internal worker script in a way that got served with an empty/missing `Content-Type`, which Firefox correctly refuses to run as a module worker ("blocked because of a disallowed MIME type"). Fixed with `optimizeDeps.exclude: ['maplibre-gl']`.
+2. **A `manualChunks` bundle-splitting change from Phase 7** (added purely to shrink bundle size) broke Rollup's normal handling of MapLibre's separately-emitted worker asset. Removed.
+3. **The real underlying issue, present since Phase 0, in both dev and production**: MapLibre GL JS v6 locates its own worker script via a URL built from `import.meta.url` relative to wherever its own module code executes. Once any bundler inlines that code into a different chunk (Vite's default behavior), the constructed URL points at a file that doesn't exist. Confirmed by directly instrumenting a raw MapLibre instance (`load`/`idle` never fired, but `styledata`/`sourcedata` did — the pipeline was stalling partway) and finally by finding "Failed to load module script: ... MIME type of text/html" for `/assets/maplibre-gl-worker.mjs` in a production build, where that exact file didn't exist in `dist/assets/` at all. Fixed by explicitly importing the real worker file (and its own internal `./maplibre-gl-shared.mjs` sibling import) via Vite's `?url` suffix and calling MapLibre's own `setWorkerUrl()` API, with `vite.config.ts`'s `assetFileNames` pinning both to their original unhashed names so the worker's unmodified relative import still resolves correctly on disk.
+
+Verified in both `npm run dev` and a full `npm run build` + `vite preview`: no MIME errors anywhere, and MapLibre's `load` and `idle` events both fire cleanly end to end. The one thing this session could not directly confirm is pixels actually painting on screen — the sandboxed browser tool used for automated verification here has its own separate limitation showing WebGL canvas content in screenshots, unrelated to the app itself (every other check — console, network, event lifecycle — came back clean). **Action item: hard-refresh and confirm the map visually renders.** The specific bugs that were definitely breaking it are fixed; if it's still not painting after that, the next thing to check would be whether canvas content is being composited at the OS/window level on this Jetson, which would be a new and different question from the one just solved.
 
 ## Completed functionality
 - Vite + React + TypeScript app shell, MapLibre + OpenFreeMap 3D Baltimore map, REALITY/DATA/BETTER modes, six mission markers, full mission flow, deterministic simulation engine (unit tested).
 - SpacetimeDB is the authoritative backend (local, ARM64-native, verified multi-client sync).
-- **Phase 3 — real Baltimore City open data** now backs all three deep missions:
+- **Real Baltimore City open data** backs all three deep missions:
   - `scripts/lib.py` + `scripts/derive_hotspots.py`: scans a 6x6 grid over Baltimore, querying the three verified live ArcGIS layers (Tree Canopy, Vacant Building Notices, Floodplain) per cell with an intersecting-envelope spatial filter (not a full citywide dump), and picks the top-scoring cell per mission.
   - Fixed two real data-integrity bugs caught during derivation: (1) vacant-building counts were silently capped at ArcGIS's 1000-record page size — now uses a `returnCountOnly` query for the true count; (2) polygon overlay files (floodplain especially) shipped each intersecting feature's *entire* unclipped geometry, producing a 14MB file — now clipped to the query cell and simplified before writing.
-  - Real derived results: Cool the Block → 0.2% canopy coverage cell; Reclaim the Lot → 3,197 vacant building notices (exact count) in one grid cell; Flood Ready → 100% floodplain overlap cell. All three are geographically plausible (matches known Baltimore geography — e.g. the vacancy hotspot lands in West Baltimore, consistent with well-documented vacancy patterns).
+  - Real derived results: Cool the Block → 0.2% canopy coverage cell; Reclaim the Lot → 3,197 vacant building notices (exact count) in one grid cell; Flood Ready → 100% floodplain overlap cell. All three are geographically plausible (e.g. the vacancy hotspot lands in West Baltimore, consistent with well-documented vacancy patterns).
   - `docs/DATA_SOURCES.md` auto-generated with the exact URLs, layer names, and method used.
-  - Frontend now imports `src/data/hotspots.generated.json` and merges it into the three deep missions' lat/lng/baseline metrics/"why here" text (`src/data/missions.seed.ts`).
-  - DATA-mode map now renders the real hotspot GeoJSON as actual layers (`src/map/dataOverlays.ts`) — green fill for canopy, orange points for vacancy, blue fill for floodplain — not just abstract circles.
-- **Phase 5 — marimo Data Command Center** (`analysis/better_baltimore.py`), verified running via `marimo run`:
-  - Dataset selector → provenance card (observed/derived/simulated + source link).
-  - Interactive geospatial chart of the actual hotspot GeoJSON (Altair `mark_geoshape`/`mark_circle`).
-  - "Why here?" + grid-cell explanation, baseline metric bar chart.
-  - Intervention slider driving a `simulate()` function that mirrors `src/simulation/engine.ts`'s formulas exactly, before/after faceted bar chart.
-  - Assumptions section.
-  - Runs in an isolated `.venv` (created to avoid a broken system pandas/numpy ABI conflict on this shared machine — see below).
+  - DATA-mode map renders the real hotspot GeoJSON as actual layers (`src/map/dataOverlays.ts`) — green fill for canopy, orange points for vacancy, blue fill for floodplain — not just abstract circles.
+- **marimo Data Command Center** (`analysis/better_baltimore.py`), verified running via `marimo run`: dataset selector → provenance card, interactive geospatial chart of the real hotspot geometry, baseline metric chart, intervention slider driving a `simulate()` that mirrors `src/simulation/engine.ts` exactly, before/after chart, assumptions section. Runs in an isolated `.venv` (this machine's system pandas/numpy have an ABI conflict — see below).
+- **Civic Copilot** (`src/ai/`): lexical evidence retrieval over live mission/source data, "Evidence Explorer" mode (no LLM key configured in this environment, so this is what actually runs — a complete, correct implementation per spec). Verified live with real retrieved evidence.
+- **City Memory** — Artscape (verified via live web search: Baltimore's free outdoor arts festival, May 23–24, 2026, organized by the Baltimore Office of Promotion & the Arts): marker, factual summary + source link, "Relive this moment" narrative clearly labeled illustrative.
+- **Real mobile-layout bug found and fixed**: below 900px, the mission panel had no height cap and squeezed the map's row to a computed 0px height whenever it was open. Fixed with height caps + independent scrolling on both sidebar and panel.
+- Clean-install verified (`rm -rf node_modules && npm ci` → typecheck/tests/build all pass).
+- Devpost submission copy drafted at [`docs/SUBMISSION.md`](../docs/SUBMISSION.md) with this build's real, verified specifics.
 
-## Phase 6 — Civic Copilot + City Memory
-- **Civic Copilot** (`src/ai/corpus.ts`, `retrieve.ts`, `explain.ts`, `src/components/CivicCopilot.tsx`): builds a small evidence corpus from live mission/source/intervention/assumption data, retrieves the top matches with lexical term-overlap scoring (no vector DB, per spec), and answers as an "Evidence Explorer" — no LLM key is configured in this environment, so this fallback path is what actually runs, and it's a complete, correct implementation per the spec ("the feature still works without an API key"). If `VITE_GEMINI_API_KEY` is ever set, it asks Gemini to summarize the same retrieved evidence only; documented in `.env.example` that this embeds the key client-side (acceptable for a hackathon demo with a restricted key, not for production without a backend proxy). Verified live: asking "Why is Cool the Block here?" correctly retrieves the mission's real derived why-here text, its intervention, and its real baseline metrics.
-- **City Memory** — Artscape (verified via live web search: nation's largest free outdoor arts festival, May 23–24, 2026, downtown Baltimore near City Hall, organized by the Baltimore Office of Promotion & the Arts, official site artscape.org): a distinct purple star marker, `CityMemoryPanel` with factual summary + source link + a "Relive this moment" button that reveals a short, clearly-labeled-as-illustrative narrative (not a recreation of any specific copyrighted performance). Seeded through the same SpacetimeDB `city_memory` table/`seed_city_memory` reducer built in Phase 2.
-
-## Phase 7 — polish
-- **Real mobile/narrow-viewport bug found and fixed**: below the 900px breakpoint, the app switches to a stacked (not side-by-side) layout for sidebar/map/mission-panel. The mission panel had no height cap, so its `auto` grid row grew to consume the *entire* remaining space, squeezing the map's `1fr` row down to a computed **0px** — the map was completely invisible whenever a mission panel was open on a narrow screen. Confirmed via `getComputedStyle(...).gridTemplateRows` showing `"243px 0px 380px"`. Fixed by capping both the sidebar (22vh) and mission panel (32vh) on narrow viewports, each independently scrollable, guaranteeing the map a real share of the height. Also fixed the footer legend wrapping under the fixed Civic Copilot button on narrow screens.
-- Split the production bundle: `maplibre-gl` and `spacetimedb` now build as separate chunks via `vite.config.ts` `manualChunks`, dropping the main app chunk from 1.39MB to ~260KB (maplibre's own chunk is still large — that's inherent to a WebGL mapping library — but now caches independently from app code).
-
-## Phase 8 — reliability & deploy
-- Clean-install check: deleted `node_modules`, ran `npm ci`, then `tsc -b` / `vitest run` / `npm run build` — all pass from scratch.
-- **Deployment decision: local-only, deliberately.** Per `02_12_HOUR_EXECUTION_PLAN.md`'s explicit fallback rule ("if cloud publish is blocking, run local SpacetimeDB and continue... do not swap to another database") and `00_START_HERE_CLAUDE.md`'s framing that the demo artifact is a recorded walkthrough, not a hosted public link — the app runs fully locally on this Jetson (frontend dev server + local SpacetimeDB + local marimo), which is explicitly sufficient. Publishing to SpacetimeDB Maincloud or a static frontend host (Vercel/GitHub Pages) was *not* attempted because it would require creating a new SpacetimeDB Maincloud account/login — a decision left to you rather than assumed. Say the word if you want that for a shareable link and I'll walk through it the same way we did `gh auth login`.
-- README now has a single "Quickstart (full stack, from a cold machine)" section covering all three services (frontend, SpacetimeDB, marimo) in the right order.
-- **Not done from this session, needs your hands-on check:** an actual screen recording and real screenshots of the 3D map in REALITY/DATA/BETTER modes. This session's browser sandbox cannot render MapLibre's WebGL map (see the module-worker note above) and `Claude in Chrome` isn't connected in this environment, so I have no way to capture the map visually. Please do a final pass in your Jetson's real browser: confirm the map renders and looks right in all three modes, then grab the screenshots/recording — that's the one concrete manual step left before this is fully demo-ready.
-
-## Phase 9 — submission prep
-Drafted full Devpost copy at [`docs/SUBMISSION.md`](../docs/SUBMISSION.md) — title, pitch, inspiration, what it does/how we built it, the real Baltimore datasets and numbers we derived, genuine challenges we hit and fixed (ArcGIS's silent record cap, the 14MB unclipped floodplain file, the marimo cell-scoping bug, the pandas/numpy ABI conflict), accomplishments, and what's next. All filled in with this build's actual verified specifics, not the generic template.
-
-## What's left (manual, needs you)
-1. **Confirm the 3D map renders correctly in a real browser on this machine.** This session's automated browser tooling couldn't verify it — the sandboxed preview pane can't run MapLibre's WebGL module workers, and `Claude in Chrome` was never connected in this environment. Everything else (mission flow, SpacetimeDB sync, marimo, Civic Copilot) was verified working end-to-end; the map itself is the one piece I could not see with my own eyes.
-2. **Record the 90–120s demo** using the script in `07_DEMO_AND_SUBMISSION.md`.
-3. **Paste the video link into `docs/SUBMISSION.md`** and submit on Devpost.
-
-If you want a judge-accessible hosted link instead of (or alongside) a local demo, say so — publishing the SpacetimeDB module to Maincloud needs a `spacetime login` (new account decision, same as the `gh auth login` flow earlier) that I didn't do without asking.
-
-## Phase 4 note
-The "complete all six missions" acceptance gate was already satisfied back in Phase 1 (all six missions have interventions and a working simulate → before/after flow; three deep + three clearly-labeled scenario missions). What Phase 3 added on top: the three deep missions now use real coordinates/metrics instead of placeholders, and DATA view shows real overlay geometry. Remaining Phase 4 scope (richer Better-view visual treatment per mission) is lighter-weight polish, deferred to Phase 7 if time allows.
+## Deployment decision: local-only, deliberately
+Per the execution plan's explicit fallback rule and the demo script's framing (a recorded walkthrough, not necessarily a hosted link) — the app runs fully locally (frontend + local SpacetimeDB + local marimo), which is explicitly sufficient. Publishing to SpacetimeDB Maincloud or a static frontend host was not attempted since it requires creating a new account/login — your call, not assumed, same as `gh auth login` earlier.
 
 ## Current tests
-- `npx vitest run` — 6/6 passing (one test updated: it hardcoded an assumption tied to the old placeholder vacancy baseline of 14; fixed to compute against the mission's actual baseline instead of a magic number, since real data is now 3,197).
+- `npx vitest run` — 6/6 passing.
 - `npx tsc -b`, `npm run build` — clean.
-- `spacetime build` — clean; local DB wiped and republished with real seed data (`spacetime publish better-baltimore --server local --delete-data=always -y`).
-- marimo notebook manually verified in-browser: all cells render (map, metrics, slider, before/after) with no errors, after fixing a marimo-specific bug (see below).
+- `spacetime build` — clean; local DB republished with real seed data.
+- marimo notebook manually verified in-browser: all cells render with no errors.
 
 ## Known issues / environment notes
-- **marimo cell-scoping bug (fixed):** initial version of the notebook defined two lookup dicts and the `simulate()` helper as plain top-level module code between `@app.cell` blocks. marimo only executes code inside `@app.cell` functions — those definitions were silently invisible to cells that referenced them, causing an unhandled `NameError` partway through the notebook (visible only as a generic "An internal error occurred" banner, with several cells simply not rendering). Fixed by moving them into their own cells. Worth remembering for any future marimo work: **all live code must be inside a cell**, even simple constants.
-- **System Python ABI conflict:** this Jetson's apt-installed `pandas` (`/usr/lib/python3/dist-packages`) is binary-incompatible with the pip-installed `numpy` already on the system (`numpy.dtype size changed` error). Worked around with an isolated `.venv` for `analysis/` and `scripts/` rather than touching the shared system Python — safer on a machine with another user's global setup. Anyone running the notebook or data scripts should `source .venv/bin/activate` first (or create their own venv from `analysis/requirements.txt` / `scripts/requirements.txt`).
-- The embedded preview-pane browser used for automated verification in this session cannot run MapLibre's module Web Workers (confirmed via direct `new Worker(url, {type:"module"})` test — fails identically in dev and production builds). This is standard browser functionality elsewhere; **please spot-check the 3D map renders in the Jetson's actual desktop browser before demo day.**
+- **marimo cell-scoping gotcha (fixed):** code outside `@app.cell` blocks is invisible to cells that reference it — caused a silent `NameError` partway through the notebook. All live code must be inside a cell.
+- **System Python ABI conflict:** this Jetson's apt-installed `pandas` conflicts with pip-installed `numpy`. Worked around with an isolated `.venv` rather than touching the shared system Python.
 - React 18/19 StrictMode double-invokes the SpacetimeDB connection effect in dev, logging one harmless cancelled-connection warning per mount. Dev-only, not present in production builds.
 
 ## Blockers
-None current — all items above are resolved or are verification/cosmetic notes.
+None — the map bug above is fixed at the code level; only visual confirmation remains, and that's a quick check, not a blocker on further work.
 
-## Next action
-Phase 6: one advanced AI feature (Civic Copilot, RAG-lite over mission/source evidence — works with or without a Gemini key) + one City Memory. After that: Phase 7 polish, Phase 8 reliability/deploy, Phase 9 submission.
+## What's left (manual, needs you)
+1. **Hard-refresh and confirm the map visually renders** in REALITY/DATA/BETTER modes.
+2. **Record the 90–120s demo** using the script in `07_DEMO_AND_SUBMISSION.md`.
+3. **Paste the video link into `docs/SUBMISSION.md`** and submit on Devpost.
 
 ## Demo readiness
-Core vertical slice + real-time backend + real Baltimore data (3 deep missions) + marimo notebook all work locally and are verified end-to-end. Still needed: Civic Copilot, City Memory, polish pass, deploy, submission materials.
+Everything is built, tested, and verified except the one visual confirmation above. Once that's done: record, submit.
