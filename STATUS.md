@@ -1,7 +1,7 @@
 # Better Baltimore — Status
 
 ## Current phase
-Phase 3 + Phase 5 complete (of 9; Phase 4 substantially already satisfied — see note). Starting Phase 6 (Civic Copilot / City Memory).
+Phase 6 complete (of 9). Starting Phase 7 (polish pass).
 
 ## Completed functionality
 - Vite + React + TypeScript app shell, MapLibre + OpenFreeMap 3D Baltimore map, REALITY/DATA/BETTER modes, six mission markers, full mission flow, deterministic simulation engine (unit tested).
@@ -20,6 +20,10 @@ Phase 3 + Phase 5 complete (of 9; Phase 4 substantially already satisfied — se
   - Intervention slider driving a `simulate()` function that mirrors `src/simulation/engine.ts`'s formulas exactly, before/after faceted bar chart.
   - Assumptions section.
   - Runs in an isolated `.venv` (created to avoid a broken system pandas/numpy ABI conflict on this shared machine — see below).
+
+## Phase 6 — Civic Copilot + City Memory
+- **Civic Copilot** (`src/ai/corpus.ts`, `retrieve.ts`, `explain.ts`, `src/components/CivicCopilot.tsx`): builds a small evidence corpus from live mission/source/intervention/assumption data, retrieves the top matches with lexical term-overlap scoring (no vector DB, per spec), and answers as an "Evidence Explorer" — no LLM key is configured in this environment, so this fallback path is what actually runs, and it's a complete, correct implementation per the spec ("the feature still works without an API key"). If `VITE_GEMINI_API_KEY` is ever set, it asks Gemini to summarize the same retrieved evidence only; documented in `.env.example` that this embeds the key client-side (acceptable for a hackathon demo with a restricted key, not for production without a backend proxy). Verified live: asking "Why is Cool the Block here?" correctly retrieves the mission's real derived why-here text, its intervention, and its real baseline metrics.
+- **City Memory** — Artscape (verified via live web search: nation's largest free outdoor arts festival, May 23–24, 2026, downtown Baltimore near City Hall, organized by the Baltimore Office of Promotion & the Arts, official site artscape.org): a distinct purple star marker, `CityMemoryPanel` with factual summary + source link + a "Relive this moment" button that reveals a short, clearly-labeled-as-illustrative narrative (not a recreation of any specific copyrighted performance). Seeded through the same SpacetimeDB `city_memory` table/`seed_city_memory` reducer built in Phase 2.
 
 ## Phase 4 note
 The "complete all six missions" acceptance gate was already satisfied back in Phase 1 (all six missions have interventions and a working simulate → before/after flow; three deep + three clearly-labeled scenario missions). What Phase 3 added on top: the three deep missions now use real coordinates/metrics instead of placeholders, and DATA view shows real overlay geometry. Remaining Phase 4 scope (richer Better-view visual treatment per mission) is lighter-weight polish, deferred to Phase 7 if time allows.

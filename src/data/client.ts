@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { connect } from "../spacetime/connection";
 import type { DbConnection } from "../spacetime/module_bindings";
-import type { DataSource, Intervention, Mission, Metric, SimulationResult, ViewMode } from "../app/types";
+import type { CityMemory, DataSource, Intervention, Mission, Metric, SimulationResult, ViewMode } from "../app/types";
 import { SEED_MISSIONS } from "./missions.seed";
+import { SEED_CITY_MEMORIES } from "./cityMemories.seed";
 
 interface MissionRow {
   id: string;
@@ -52,6 +53,18 @@ interface SimulationRunRow {
   assumptionsJson: string;
 }
 
+interface CityMemoryRow {
+  id: string;
+  title: string;
+  category: string;
+  lat: number;
+  lng: number;
+  eventDate: string;
+  summary: string;
+  sourceUrl: string;
+  sceneJson: string;
+}
+
 interface StoredSimResult {
   before: Metric[];
   after: Metric[];
@@ -63,6 +76,7 @@ export interface SpacetimeData {
   connected: boolean;
   missions: Mission[];
   dataSources: DataSource[];
+  cityMemories: CityMemory[];
   simulationResults: Record<string, SimulationResult>;
   chooseIntervention: (missionId: string, interventionId: string) => void;
   persistSimulation: (missionId: string, interventionId: string, result: SimulationResult) => void;
@@ -79,6 +93,7 @@ export function useSpacetimeData(): SpacetimeData {
   const [missionStateRows, setMissionStateRows] = useState<Record<string, MissionStateRow>>({});
   const [dataSourceRows, setDataSourceRows] = useState<Record<string, DataSourceRow>>({});
   const [simRunsByMission, setSimRunsByMission] = useState<Record<string, SimulationRunRow>>({});
+  const [cityMemoryRows, setCityMemoryRows] = useState<Record<string, CityMemoryRow>>({});
 
   useEffect(() => {
     const conn = connect({
@@ -115,6 +130,9 @@ export function useSpacetimeData(): SpacetimeData {
           setSimRunsByMission((prev) => ({ ...prev, [row.missionId]: row })),
         );
 
+        c.db.cityMemory.onInsert((_ctx, row) => setCityMemoryRows((prev) => ({ ...prev, [row.id]: row })));
+        c.db.cityMemory.onUpdate((_ctx, _old, row) => setCityMemoryRows((prev) => ({ ...prev, [row.id]: row })));
+
         c.subscriptionBuilder()
           .onApplied(() => {
             if (!seededRef.current && c.db.mission.count() === 0n) {
@@ -128,6 +146,7 @@ export function useSpacetimeData(): SpacetimeData {
             "SELECT * FROM mission_state",
             "SELECT * FROM data_source",
             "SELECT * FROM simulation_run",
+            "SELECT * FROM city_memory",
           ]);
       },
       onDisconnect: () => setConnected(false),
@@ -147,6 +166,18 @@ export function useSpacetimeData(): SpacetimeData {
 
   const dataSources: DataSource[] = Object.values(dataSourceRows);
 
+  const cityMemories: CityMemory[] = Object.values(cityMemoryRows).map((row) => ({
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    lat: row.lat,
+    lng: row.lng,
+    eventDate: row.eventDate,
+    summary: row.summary,
+    sourceUrl: row.sourceUrl,
+    narrative: safeParse<{ narrative: string }>(row.sceneJson, { narrative: "" }).narrative,
+  }));
+
   const simulationResults: Record<string, SimulationResult> = {};
   for (const [missionId, run] of Object.entries(simRunsByMission)) {
     try {
@@ -162,6 +193,7 @@ export function useSpacetimeData(): SpacetimeData {
     connected,
     missions: missions.length > 0 ? missions : SEED_MISSIONS,
     dataSources,
+    cityMemories: cityMemories.length > 0 ? cityMemories : SEED_CITY_MEMORIES,
     simulationResults,
     chooseIntervention: (missionId, interventionId) => {
       void connRef.current?.reducers.chooseIntervention({ missionId, interventionId });
@@ -266,5 +298,19 @@ function seedInitialData(conn: DbConnection): void {
         parametersJson: JSON.stringify(intervention.parameters),
       });
     }
+  }
+
+  for (const memory of SEED_CITY_MEMORIES) {
+    void conn.reducers.seedCityMemory({
+      id: memory.id,
+      title: memory.title,
+      category: memory.category,
+      lat: memory.lat,
+      lng: memory.lng,
+      eventDate: memory.eventDate,
+      summary: memory.summary,
+      sourceUrl: memory.sourceUrl,
+      sceneJson: JSON.stringify({ narrative: memory.narrative }),
+    });
   }
 }

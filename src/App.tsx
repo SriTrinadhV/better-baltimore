@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import "./App.css";
-import type { Intervention, Mission, ViewMode } from "./app/types";
+import type { CityMemory, Intervention, Mission, ViewMode } from "./app/types";
 import { runSimulation } from "./simulation/engine";
 import { useSpacetimeData } from "./data/client";
 import { findSource } from "./data/provenance";
@@ -8,6 +8,8 @@ import { ModeSwitch } from "./components/ModeSwitch";
 import { MissionList } from "./components/MissionList";
 import { CityMap } from "./components/CityMap";
 import { MissionPanel } from "./components/MissionPanel";
+import { CityMemoryPanel } from "./components/CityMemoryPanel";
+import { CivicCopilot } from "./components/CivicCopilot";
 
 type Screen = "landing" | "explore";
 
@@ -15,16 +17,35 @@ function App() {
   const [screen, setScreen] = useState<Screen>("landing");
   const [mode, setMode] = useState<ViewMode>("REALITY");
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
-  const { connected, missions, dataSources, simulationResults, chooseIntervention, persistSimulation } =
-    useSpacetimeData();
+  const [selectedCityMemoryId, setSelectedCityMemoryId] = useState<string | null>(null);
+  const {
+    connected,
+    missions,
+    dataSources,
+    cityMemories,
+    simulationResults,
+    chooseIntervention,
+    persistSimulation,
+  } = useSpacetimeData();
 
   const selectedMission = useMemo(
     () => missions.find((m) => m.id === selectedMissionId) ?? null,
     [missions, selectedMissionId],
   );
 
+  const selectedCityMemory = useMemo(
+    () => cityMemories.find((m) => m.id === selectedCityMemoryId) ?? null,
+    [cityMemories, selectedCityMemoryId],
+  );
+
   function handleSelectMission(mission: Mission) {
+    setSelectedCityMemoryId(null);
     setSelectedMissionId(mission.id);
+  }
+
+  function handleSelectCityMemory(memory: CityMemory) {
+    setSelectedMissionId(null);
+    setSelectedCityMemoryId(memory.id);
   }
 
   function handleRunSimulation(mission: Mission, intervention: Intervention) {
@@ -68,16 +89,19 @@ function App() {
           {connected ? "SpacetimeDB connected" : "Connecting to SpacetimeDB…"}
         </span>
       </header>
-      <div className={`app__body ${selectedMission ? "app__body--with-panel" : ""}`}>
+      <div className={`app__body ${selectedMission || selectedCityMemory ? "app__body--with-panel" : ""}`}>
         <aside className="sidebar">
           <MissionList missions={missions} selectedId={selectedMissionId} onSelect={handleSelectMission} />
         </aside>
         <CityMap
           missions={missions}
+          cityMemories={cityMemories}
           mode={mode}
           selectedMissionId={selectedMissionId}
+          selectedCityMemoryId={selectedCityMemoryId}
           simulationResults={simulationResults}
           onSelectMission={handleSelectMission}
+          onSelectCityMemory={handleSelectCityMemory}
         />
         {selectedMission && (
           <MissionPanel
@@ -88,7 +112,15 @@ function App() {
             onClose={() => setSelectedMissionId(null)}
           />
         )}
+        {selectedCityMemory && (
+          <CityMemoryPanel
+            memory={selectedCityMemory}
+            onRelive={() => {}}
+            onClose={() => setSelectedCityMemoryId(null)}
+          />
+        )}
       </div>
+      <CivicCopilot missions={missions} dataSources={dataSources} simulationResults={simulationResults} />
       <footer className="legend">
         <span className="legend__item">
           <span className="legend__dot" style={{ background: "#2f9e44" }} /> Tree Canopy

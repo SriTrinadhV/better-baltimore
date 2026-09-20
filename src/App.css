@@ -178,6 +178,22 @@
   box-shadow: 0 0 0 3px #8be59a;
 }
 
+.city-memory-marker {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #7048e8;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
 .mission-panel {
   border-left: 1px solid var(--panel-border);
   background: var(--panel-bg);
@@ -383,4 +399,102 @@
 .connection-badge--connected {
   background: rgba(76, 175, 80, 0.2);
   color: #8be59a;
+}
+
+.copilot-toggle {
+  position: fixed;
+  right: 20px;
+  bottom: 44px;
+  z-index: 20;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--accent);
+  color: #08111f;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.copilot-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  z-index: 20;
+  width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.copilot-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.copilot-panel__header button {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+.copilot-panel__hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 6px 0;
+}
+
+.copilot-panel__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.copilot-panel__suggestion {
+  text-align: left;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+}
+
+.copilot-panel__input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  margin-bottom: 8px;
+}
+
+.copilot-panel__answer ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.copilot-panel__evidence li {
+  font-size: 12px;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
+}
+
+.copilot-panel__evidence p {
+  color: var(--text-dim);
+  margin: 4px 0;
 }

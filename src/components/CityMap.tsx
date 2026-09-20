@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Map as MapLibreMap, NavigationControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Mission, SimulationResult, ViewMode } from "../app/types";
+import type { CityMemory, Mission, SimulationResult, ViewMode } from "../app/types";
 import { add3dBuildings, BALTIMORE_CENTER, BALTIMORE_OVERVIEW_ZOOM } from "../map/layers";
 import { flyToMission, flyToOverview } from "../map/camera";
 import { createMissionMarker, markerColor, type MissionMarkerHandle } from "../map/missions";
+import { createCityMemoryMarker, type CityMemoryMarkerHandle } from "../map/cityMemories";
 import { ensureOverlaySource, setOverlayFeatures } from "../map/betterView";
 import { ensureDataOverlays, setDataOverlaysVisible } from "../map/dataOverlays";
 
@@ -12,16 +13,29 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
 interface Props {
   missions: Mission[];
+  cityMemories: CityMemory[];
   mode: ViewMode;
   selectedMissionId: string | null;
+  selectedCityMemoryId: string | null;
   simulationResults: Record<string, SimulationResult>;
   onSelectMission: (mission: Mission) => void;
+  onSelectCityMemory: (memory: CityMemory) => void;
 }
 
-export function CityMap({ missions, mode, selectedMissionId, simulationResults, onSelectMission }: Props) {
+export function CityMap({
+  missions,
+  cityMemories,
+  mode,
+  selectedMissionId,
+  selectedCityMemoryId,
+  simulationResults,
+  onSelectMission,
+  onSelectCityMemory,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, MissionMarkerHandle>>(new Map());
+  const memoryMarkersRef = useRef<Map<string, CityMemoryMarkerHandle>>(new Map());
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   // Init map once.
@@ -56,6 +70,8 @@ export function CityMap({ missions, mode, selectedMissionId, simulationResults, 
     return () => {
       markersRef.current.forEach((h) => h.marker.remove());
       markersRef.current.clear();
+      memoryMarkersRef.current.forEach((h) => h.marker.remove());
+      memoryMarkersRef.current.clear();
       map.remove();
       mapRef.current = null;
     };
@@ -82,18 +98,39 @@ export function CityMap({ missions, mode, selectedMissionId, simulationResults, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missions, selectedMissionId, status]);
 
-  // Fly to mission on selection.
+  // Create city memory markers.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || status !== "ready") return;
-    if (!selectedMissionId) {
-      flyToOverview(map);
+
+    for (const memory of cityMemories) {
+      if (!memoryMarkersRef.current.has(memory.id)) {
+        const handle = createCityMemoryMarker(map, memory, onSelectCityMemory);
+        memoryMarkersRef.current.set(memory.id, handle);
+      }
+      const el = memoryMarkersRef.current.get(memory.id)!.marker.getElement();
+      el.classList.toggle("mission-marker--selected", memory.id === selectedCityMemoryId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityMemories, selectedCityMemoryId, status]);
+
+  // Fly to mission or city memory on selection.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || status !== "ready") return;
+    if (selectedMissionId) {
+      const mission = missions.find((m) => m.id === selectedMissionId);
+      if (mission) flyToMission(map, mission.lat, mission.lng);
       return;
     }
-    const mission = missions.find((m) => m.id === selectedMissionId);
-    if (mission) flyToMission(map, mission.lat, mission.lng);
+    if (selectedCityMemoryId) {
+      const memory = cityMemories.find((m) => m.id === selectedCityMemoryId);
+      if (memory) flyToMission(map, memory.lat, memory.lng);
+      return;
+    }
+    flyToOverview(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMissionId, status]);
+  }, [selectedMissionId, selectedCityMemoryId, status]);
 
   // Update DATA/BETTER overlay.
   useEffect(() => {

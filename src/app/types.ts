@@ -53,3 +53,15 @@ export interface SimulationResult {
   assumptions: string[];
   confidence: "illustrative" | "low" | "medium" | "high";
 }
+
+export interface CityMemory {
+  id: string;
+  title: string;
+  category: string;
+  lat: number;
+  lng: number;
+  eventDate: string;
+  summary: string;
+  sourceUrl: string;
+  narrative: string;
+}
