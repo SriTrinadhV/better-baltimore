@@ -37,6 +37,34 @@
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto;
   }
+
+  .sidebar {
+    max-height: 22vh;
+  }
+
+  .mission-panel {
+    max-height: 32vh;
+  }
+
+  .legend {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .legend > span:last-child {
+    display: none;
+  }
+
+  .copilot-toggle {
+    bottom: 56px;
+  }
+
+  .copilot-panel {
+    bottom: 100px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
 }
 
 .sidebar {
