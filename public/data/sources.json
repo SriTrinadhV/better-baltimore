@@ -1,0 +1,32 @@
+[
+  {
+    "id": "tree-canopy",
+    "name": "Baltimore City Tree Canopy",
+    "publisher": "Baltimore City",
+    "url": "https://geodata.baltimorecity.gov/egis/rest/services/Housing/dmxBoundaries/MapServer/27",
+    "retrievedAt": "pending verification in Phase 3",
+    "observed": "Tree-canopy polygon coverage",
+    "derived": "Low-canopy hotspot score for the mission cell",
+    "simulated": "Canopy coverage added by the player's chosen intervention"
+  },
+  {
+    "id": "vacant-buildings",
+    "name": "Baltimore Vacant Building Notices",
+    "publisher": "Baltimore City / DHCD",
+    "url": "https://egisdata.baltimorecity.gov/egis/rest/services/Housing/DHCD_Open_Baltimore_Datasets/FeatureServer/1",
+    "retrievedAt": "pending verification in Phase 3",
+    "observed": "Vacant building notice locations and counts",
+    "derived": "Vacancy density score around the mission area",
+    "simulated": "Selected parcels marked as reused by the player's intervention"
+  },
+  {
+    "id": "floodplain",
+    "name": "Baltimore City Floodplain",
+    "publisher": "Baltimore City",
+    "url": "https://egis.baltimorecity.gov/egis/rest/services/Housing/dmxCityPrograms/MapServer/25",
+    "retrievedAt": "pending verification in Phase 3",
+    "observed": "Official floodplain polygon geometry",
+    "derived": "Floodplain overlap percentage for the mission area",
+    "simulated": "Scenario resilience score from a hypothetical green-infrastructure treatment"
+  }
+]
