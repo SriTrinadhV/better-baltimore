@@ -13,7 +13,27 @@ Full product/technical spec lives in the numbered context-pack docs at the repo 
 - SpacetimeDB (authoritative backend, added in Phase 2)
 - marimo + Python (Data Command Center, added in Phase 5)
 
-## Run locally
+## Quickstart (full stack, from a cold machine)
+
+```bash
+# 1. Frontend
+npm install
+npm run dev                     # http://localhost:5173
+
+# 2. Backend (separate terminal) — see "SpacetimeDB" below for first-time setup
+spacetime start &                # local server, http://127.0.0.1:3000
+# (already published once? skip straight to `npm run dev` above — the app
+#  auto-seeds the mission table on first connect if it's empty)
+
+# 3. Data Command Center (optional, separate terminal)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r analysis/requirements.txt
+marimo run analysis/better_baltimore.py
+```
+
+Open http://localhost:5173, click **Explore Baltimore**. The "SpacetimeDB connected" badge in the header confirms the backend is reachable.
+
+## Run locally (frontend only)
 
 ```bash
 npm install
@@ -69,15 +89,17 @@ See `03_TECHNICAL_ARCHITECTURE.md` for the full intended layout. Current state:
 
 ```
 src/
-├─ app/            # shared types
-├─ components/      # React UI components
-├─ map/             # MapLibre layer/camera/marker helpers
+├─ app/              # shared types
+├─ components/       # React UI components
+├─ map/              # MapLibre layer/camera/marker helpers
 ├─ simulation/       # deterministic scenario engine + tests
-└─ data/            # seed missions, data-source provenance loader
-public/data/         # normalized static datasets (sources.json, later hotspot GeoJSON)
-spacetimedb/         # SpacetimeDB module (Phase 2)
-analysis/            # marimo notebook (Phase 5)
-scripts/             # data ingestion scripts (Phase 3)
+├─ ai/               # Civic Copilot corpus/retrieval/generation
+├─ spacetime/        # connection + generated client bindings
+└─ data/             # SpacetimeDB-backed data hook, seed data, provenance
+public/data/         # normalized static datasets + hotspot GeoJSON overlays
+spacetimedb/         # SpacetimeDB TypeScript module (schema + reducers)
+analysis/            # marimo Data Command Center notebook
+scripts/             # Baltimore open-data ingestion pipeline
 docs/                # data source documentation
 ```
 

@@ -1,7 +1,7 @@
 # Better Baltimore — Status
 
 ## Current phase
-Phase 7 complete (of 9). Starting Phase 8 (reliability + deploy).
+Phase 8 complete (of 9, local-only deployment — see note). Starting Phase 9 (submission prep).
 
 ## Completed functionality
 - Vite + React + TypeScript app shell, MapLibre + OpenFreeMap 3D Baltimore map, REALITY/DATA/BETTER modes, six mission markers, full mission flow, deterministic simulation engine (unit tested).
@@ -28,6 +28,12 @@ Phase 7 complete (of 9). Starting Phase 8 (reliability + deploy).
 ## Phase 7 — polish
 - **Real mobile/narrow-viewport bug found and fixed**: below the 900px breakpoint, the app switches to a stacked (not side-by-side) layout for sidebar/map/mission-panel. The mission panel had no height cap, so its `auto` grid row grew to consume the *entire* remaining space, squeezing the map's `1fr` row down to a computed **0px** — the map was completely invisible whenever a mission panel was open on a narrow screen. Confirmed via `getComputedStyle(...).gridTemplateRows` showing `"243px 0px 380px"`. Fixed by capping both the sidebar (22vh) and mission panel (32vh) on narrow viewports, each independently scrollable, guaranteeing the map a real share of the height. Also fixed the footer legend wrapping under the fixed Civic Copilot button on narrow screens.
 - Split the production bundle: `maplibre-gl` and `spacetimedb` now build as separate chunks via `vite.config.ts` `manualChunks`, dropping the main app chunk from 1.39MB to ~260KB (maplibre's own chunk is still large — that's inherent to a WebGL mapping library — but now caches independently from app code).
+
+## Phase 8 — reliability & deploy
+- Clean-install check: deleted `node_modules`, ran `npm ci`, then `tsc -b` / `vitest run` / `npm run build` — all pass from scratch.
+- **Deployment decision: local-only, deliberately.** Per `02_12_HOUR_EXECUTION_PLAN.md`'s explicit fallback rule ("if cloud publish is blocking, run local SpacetimeDB and continue... do not swap to another database") and `00_START_HERE_CLAUDE.md`'s framing that the demo artifact is a recorded walkthrough, not a hosted public link — the app runs fully locally on this Jetson (frontend dev server + local SpacetimeDB + local marimo), which is explicitly sufficient. Publishing to SpacetimeDB Maincloud or a static frontend host (Vercel/GitHub Pages) was *not* attempted because it would require creating a new SpacetimeDB Maincloud account/login — a decision left to you rather than assumed. Say the word if you want that for a shareable link and I'll walk through it the same way we did `gh auth login`.
+- README now has a single "Quickstart (full stack, from a cold machine)" section covering all three services (frontend, SpacetimeDB, marimo) in the right order.
+- **Not done from this session, needs your hands-on check:** an actual screen recording and real screenshots of the 3D map in REALITY/DATA/BETTER modes. This session's browser sandbox cannot render MapLibre's WebGL map (see the module-worker note above) and `Claude in Chrome` isn't connected in this environment, so I have no way to capture the map visually. Please do a final pass in your Jetson's real browser: confirm the map renders and looks right in all three modes, then grab the screenshots/recording — that's the one concrete manual step left before this is fully demo-ready.
 
 ## Phase 4 note
 The "complete all six missions" acceptance gate was already satisfied back in Phase 1 (all six missions have interventions and a working simulate → before/after flow; three deep + three clearly-labeled scenario missions). What Phase 3 added on top: the three deep missions now use real coordinates/metrics instead of placeholders, and DATA view shows real overlay geometry. Remaining Phase 4 scope (richer Better-view visual treatment per mission) is lighter-weight polish, deferred to Phase 7 if time allows.
